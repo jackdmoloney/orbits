@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"image/color"
 	"log"
+	"math"
 
 	"github.com/jackdmoloney/orbits/sim"
 
@@ -14,43 +16,41 @@ import (
 type Game struct {
 	simulator    sim.Simulator
 	layoutSize   int
-	timeStep     int
+	timeStep     float64
 	stepsPerTick int
-	timeElapsed  int
+	timeElapsed  float64
 }
 
 func (g *Game) Update() error {
 	timeStep := g.timeStep
 	stepsPerTick := g.stepsPerTick
 	for i := 0; i < stepsPerTick; i++ {
-		g.simulator.Step(float64(timeStep))
+		g.simulator.Step(timeStep)
 	}
-	g.timeElapsed += stepsPerTick * timeStep
+	g.timeElapsed += float64(stepsPerTick) * timeStep
 
 	return nil
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	scale := float64(g.layoutSize) / 2
-	for _, body := range g.simulator.Bodies {
-		locationX, locationY := sim.LogScaledLocation(body, scale)
+	bodies := g.simulator.Bodies()
+	for _, body := range bodies {
+		x, y := body.Location()
+		radius := math.Sqrt(body.Mass())
+
 		vector.DrawFilledCircle(
 			screen,
-			float32(locationX+scale),
-			float32(locationY+scale),
-			float32(sim.LogScaledRadius(body, 2, 20)),
-			sim.BodyColor(body.Name),
+			float32(x),
+			float32(y),
+			float32(radius),
+			color.RGBA{A: 255, R: 255, G: 255, B: 255},
 			false,
 		)
 	}
 
 	ebitenutil.DebugPrint(screen, fmt.Sprintf(
-		"TPS: %0.2f (Target: 60)\nTime Simulated: %s\nSimulated per Second: %s\nSimulation Time Step: %s\nSimulation Steps per Second: %d",
+		"TPS: %0.2f (Target: 60)",
 		ebiten.ActualTPS(),
-		SecondsToTime(g.timeElapsed),
-		SecondsToTime(g.timeStep*g.stepsPerTick*60),
-		SecondsToTime(g.timeStep),
-		g.stepsPerTick*60,
 	))
 }
 
@@ -59,15 +59,15 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 }
 
 func main() {
-	bodies := sim.BodiesSol()
-	// bodies := sim.BodiesSunTest()
-	simulator := sim.Simulator{Bodies: bodies}
+	layout := 400
+	gridSize := 20
+	simulator := sim.NewMeshSimulator(gridSize, layout/gridSize+1, layout/gridSize+1, 10000)
 
 	game := Game{
-		layoutSize:   600,
-		simulator:    simulator,
-		timeStep:     60,
-		stepsPerTick: 5000,
+		layoutSize:   layout,
+		simulator:    &simulator,
+		timeStep:     0.1,
+		stepsPerTick: 1,
 		timeElapsed:  0,
 	}
 
