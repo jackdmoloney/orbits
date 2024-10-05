@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"log"
 	"math"
+	"time"
 
 	"github.com/jackdmoloney/orbits/sim"
 
@@ -19,22 +20,29 @@ type Game struct {
 	timeStep     float64
 	stepsPerTick int
 	timeElapsed  float64
+
+	simulationTime string
 }
 
 func (g *Game) Update() error {
 	timeStep := g.timeStep
 	stepsPerTick := g.stepsPerTick
+	now := time.Now()
+
 	for i := 0; i < stepsPerTick; i++ {
 		g.simulator.Step(timeStep)
 	}
 	g.timeElapsed += float64(stepsPerTick) * timeStep
 
+	g.simulationTime = fmt.Sprint(time.Since(now))
 	return nil
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
 	bodies := g.simulator.Bodies()
-	for _, body := range bodies {
+	now := time.Now()
+
+	for _, body := range bodies[:1000] {
 		x, y := body.Location()
 		radius := math.Sqrt(body.Mass())
 
@@ -49,8 +57,12 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 
 	ebitenutil.DebugPrint(screen, fmt.Sprintf(
-		"TPS: %0.2f (Target: 60)",
+		"TPS: %0.2f (Target: 60)\nSimulation Time: %s\nRender Time: %s\nBodies Simulated: %d\nBodies Rendered: %d",
 		ebiten.ActualTPS(),
+		g.simulationTime,
+		time.Since(now),
+		100000,
+		1000,
 	))
 }
 
@@ -61,12 +73,12 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 func main() {
 	layout := 400
 	gridSize := 20
-	simulator := sim.NewMeshSimulator(gridSize, layout/gridSize+1, layout/gridSize+1, 10000)
+	simulator := sim.NewMeshSimulator(gridSize, layout/gridSize+1, layout/gridSize+1, 100000)
 
 	game := Game{
 		layoutSize:   layout,
 		simulator:    &simulator,
-		timeStep:     0.1,
+		timeStep:     0.01,
 		stepsPerTick: 1,
 		timeElapsed:  0,
 	}

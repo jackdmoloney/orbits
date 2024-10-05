@@ -17,7 +17,7 @@ type body struct {
 }
 
 type meshSimulator struct {
-	bodies []*body
+	bodies []body
 
 	gridScale, gridX, gridY int
 	massGrid                []float64
@@ -33,11 +33,11 @@ func NewMeshSimulator(gridScale, gridX, gridY, bodyCount int) meshSimulator {
 	return meshSimulator{bodies, gridScale, gridX, gridY, massGrid, vectorGrid}
 }
 
-func GenerateBodies(gridScale, gridX, gridY, bodyCount int) []*body {
-	bodies := make([]*body, bodyCount)
+func GenerateBodies(gridScale, gridX, gridY, bodyCount int) []body {
+	bodies := make([]body, bodyCount)
 
 	for i := range bodies {
-		b := &body{}
+		b := body{}
 
 		// Generate random location within the grid
 		b.location.x = float64(rand.Intn(gridX*gridScale)) + rand.Float64()
@@ -57,10 +57,10 @@ func GenerateBodies(gridScale, gridX, gridY, bodyCount int) []*body {
 	return bodies
 }
 
-func (b *body) Location() (float64, float64) {
+func (b body) Location() (float64, float64) {
 	return b.location.x, b.location.y
 }
-func (b *body) Mass() float64 {
+func (b body) Mass() float64 {
 	return b.mass
 }
 
@@ -91,15 +91,16 @@ func (s *meshSimulator) Bodies() []Body {
 }
 
 func (s *meshSimulator) Step(timeStep float64) {
+	// now := time.Now()
 	s.calculateBodyGridLocations()
 	s.calculateGridMass()
 	s.calculateVectorGrid()
-	s.calculateBodyAccelerations(timeStep)
-	s.calculateBodyLocation(timeStep)
+	s.updateBodies(timeStep)
+	// fmt.Printf("\r%s", time.Since(now))
 }
 
 func (s *meshSimulator) calculateBodyGridLocations() {
-	for _, b := range s.bodies {
+	for i, b := range s.bodies {
 		x, y := b.location.x, b.location.y
 		gridX := int(x) / s.gridScale
 		gridY := int(y) / s.gridScale
@@ -126,10 +127,10 @@ func (s *meshSimulator) calculateBodyGridLocations() {
 			b.velocity = velocity{}
 		}
 
-		b.gridX = gridX
-		b.gridY = gridY
-		b.gridOffsetX = dx
-		b.gridOffsetY = dy
+		s.bodies[i].gridX = gridX
+		s.bodies[i].gridY = gridY
+		s.bodies[i].gridOffsetX = dx
+		s.bodies[i].gridOffsetY = dy
 	}
 }
 
@@ -189,9 +190,9 @@ func (s *meshSimulator) calculateVectorGrid() {
 	}
 }
 
-func (s *meshSimulator) calculateBodyAccelerations(timeStep float64) {
+func (s *meshSimulator) updateBodies(timeStep float64) {
 	gridScale := float64(s.gridScale)
-	for _, b := range s.bodies {
+	for i, b := range s.bodies {
 		ax := 0.0
 		ay := 0.0
 
@@ -220,15 +221,9 @@ func (s *meshSimulator) calculateBodyAccelerations(timeStep float64) {
 		ay += s.vectorGrid[i3].y * wx1 * wy2
 		ay += s.vectorGrid[i4].y * wx2 * wy2
 
-		b.velocity.x += ax * timeStep
-		b.velocity.y += ay * timeStep
-	}
-}
-
-func (s *meshSimulator) calculateBodyLocation(timeStep float64) {
-	for _, b := range s.bodies {
-		b.location.x += b.velocity.x * timeStep
-		b.location.y += b.velocity.y * timeStep
-
+		s.bodies[i].velocity.x += ax * timeStep
+		s.bodies[i].velocity.y += ay * timeStep
+		s.bodies[i].location.x += s.bodies[i].velocity.x * timeStep
+		s.bodies[i].location.y += s.bodies[i].velocity.y * timeStep
 	}
 }
